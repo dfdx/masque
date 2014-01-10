@@ -26,7 +26,7 @@ def conv2(im, kernel, mode='same', dst=None):
         dst = np.zeros(im.shape)
     fk = np.fliplr(np.flipud(kernel)).copy()
     dst = cv2.filter2D(source, -1, fk, anchor=anchor, delta=0,
-                       borderType=cv2.BORDER_CONSTANT)
+                 borderType=cv2.BORDER_CONSTANT)
     if mode == 'valid':
         dst = dst[(kernel.shape[1]-1)/2 : dst.shape[1] - kernel.shape[1]/2, \
                   (kernel.shape[0]-1)/2 : dst.shape[0] - kernel.shape[0]/2]

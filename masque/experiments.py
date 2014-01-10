@@ -1,22 +1,26 @@
 
 from __future__ import print_function
 import numpy as np
+import cv2
 from sklearn.neural_network import BernoulliRBM
 from sklearn.linear_model import LogisticRegression
 from sklearn.cross_validation import cross_val_score, train_test_split
 from skimage.filter import gabor_kernel
 from operator import mul
 
+
 from utils import conv2, smartshow
 from datasets import cohn_kanade
+from nets import ConvRBM
 
-IMAGE_SHAPE = (32, 32)
+IMAGE_SHAPE = (64, 64)
+N = IMAGE_SHAPE[0] * IMAGE_SHAPE[1] / 2
 
 def init():
     global XX, X, yy, y 
     XX, yy = cohn_kanade(image_shape=IMAGE_SHAPE)
-    X = X[y != -1]
-    y = y[y != -1]
+    X = XX[yy != -1]
+    y = yy[yy != -1]
 
     
 def cv_logistic():
@@ -73,25 +77,50 @@ def cv_dbn_l2():
     scores = np.array(scores)
     print('Accuracy: %f (+/- %f)' % (scores.mean(), scores.std() * 3))
     return scores
-
-def cv_dbn_l2_gabor():
     
-    rbm1 = BernoulliRBM(n_components=512, verbose=True)
-    rbm2 = BernoulliRBM(n_components=256, verbose=True)
-    print('Fitting RBM #1 with full dataset')
-    rbm1.fit(XX)    
-    print('Fitting RBM #2 with full dataset')
-    XXt = rbm1.transform(XX)
-    rbm2.fit(XXt)
-    Xt = rbm1.transform(X)
-    Xt = rbm2.transform(Xt)
-    scores = []
-    for k in range(10):
-        print('Logistic regression, iteration #%d' % k)
-        X_train, X_test, y_train, y_test = train_test_split(Xt, y, test_size=0.1)
-        lr = LogisticRegression()
-        lr.fit(X_train, y_train)
-        scores.append(lr.score(X_test, y_test))
-    scores = np.array(scores)
+def _canny(im):
+    im = (im * 255).astype(np.uint8)
+    kernel_size = 3
+    # threshold = 50
+    im = cv2.GaussianBlur(im, (kernel_size, kernel_size), 0)    
+    im = cv2.Canny(im, 40, 120, apertureSize=kernel_size)
+    return im / 255.
+
+
+def cv_logistic_canny():
+    print('Applying Canny filter')
+    Xt = np.vstack(_canny(x.reshape(IMAGE_SHAPE)).flatten() for x in X)
+    model = LogisticRegression()
+    print('Running Cross-Validation')
+    scores = cross_val_score(model, Xt, y, cv=10)
     print('Accuracy: %f (+/- %f)' % (scores.mean(), scores.std() * 3))
     return scores
+    
+def cv_dbn_l1_gabor():
+    # 1: edge detection
+    # 2: convolution
+    # 3: RBM
+    # 4: Logistic Regression
+    N = IMAGE_SHAPE[0]*IMAGE_SHAPE[1]/2
+    print('Applying Canny filter')
+    XXt = np.vstack(_canny(x.reshape(IMAGE_SHAPE)).flatten() for x in XX)    
+    rbm = BernoulliRBM(n_components=N, verbose=True)
+    print('Fitting RBM')
+    rbm.fit(XXt)
+    Xt = np.vstack(_canny(x.reshape(IMAGE_SHAPE)).flatten() for x in X)
+    Xt = rbm.transform(Xt)
+    print(Xt.max())
+    print(Xt.min())
+    lr = LogisticRegression()
+    scores = cross_val_score(lr, Xt, y, cv=10)
+    print('Accuracy: %f (+/- %f)' % (scores.mean(), scores.std() * 3))
+    return scores
+    
+
+
+
+def run():
+    from nets import ConvRBM
+    model = ConvRBM(IMAGE_SHAPE, 2048)
+    model.fit(X[:10])
+    return model

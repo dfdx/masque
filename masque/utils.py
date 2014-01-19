@@ -166,3 +166,16 @@ def move_landmarks(landmarks, new_origin):
     """
     oi, oj = new_origin
     return np.array([[lm[0] - oi, lm[1] - oj] for lm in landmarks])
+
+    
+def get_patch(im, shape):
+    """get_patch(im, shape) -> patch
+    
+    Extracts patch of speficied shape from an image. 
+    """
+    h, w = shape
+    max_i = im.shape[0] - h
+    max_j = im.shape[1] - w
+    i = np.random.randint(0, max_i)
+    j = np.random.randint(0, max_j)
+    return im[i:i+h, j:j+w]

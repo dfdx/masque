@@ -6,12 +6,16 @@ Based on: https://github.com/dustinstansbury/medal/blob/master/models/crbm.m
 from __future__ import print_function
 from numpy import array, dot
 import numpy as np
+import matplotlib.pylab as plt
 from sklearn.base import BaseEstimator
 from sklearn.base import TransformerMixin
 from sklearn.externals.six.moves import xrange
 from sklearn.utils.extmath import logistic_sigmoid
+from sklearn import datasets
 from scipy import signal
-from utils import conv2, smartshow
+from utils import conv2, implot, mkfig
+import time
+import os
 
 
 class ConvRBM(object):
@@ -27,18 +31,13 @@ class ConvRBM(object):
         self.h_shape = (v_shape[0] - w_size + 1, v_shape[1] - w_size + 1)
         self.n_hiddens = n_hiddens
         self.n_iter = n_iter
-        # self.stride = stride
         self.n_gibbs = n_gibbs
         self.verbose = verbose
         self.lr = learning_rate
         self.rng = random_state
-        # self.stride = stride
         self.W = w_sigma * self.rng.normal(0, 1,
                                            (self.n_hiddens,) + (w_size, w_size))
         self.hiddens = self.rng.uniform(size=(self.n_hiddens,) + self.h_shape)
-        # self.b = np.zeros((self.n_hiddens,) + self.h_shape)
-        # self.c = np.zeros((self.v_shape[0] - 2*w_size + 2,
-        #                    self.v_shape[1] - 2*w_size + 2))
         self.b = 0
         self.c = np.zeros((self.n_hiddens))
         self.dW = np.zeros(self.W.shape)
@@ -49,17 +48,24 @@ class ConvRBM(object):
         self.sparse_gain = 1.
         self.sparsity = sparsity
 
-    def fit(self, X):
+    def fit(self, X, save_to=None):
+        # save_idxs = [0, 1, 2, 3, 4, 5, 10, 20, 50, 100, 200, 1000, 2000, 4000]
         n_batches = X.shape[0]
         w, h = self.v_shape        
         for itr in xrange(self.n_iter):
             print('Iteration: %d' % itr)
             sum_err = 0
-            # print('fit')
             for vi in xrange(n_batches):
-                print('  batch #%d' % vi)
-                v = X[vi].reshape(self.v_shape)
-                # print('fit2: ' + str(v.shape))
+                print('  minibatch #%d' % vi)
+                if vi % 50 == 0:
+                    fig = mkfig(w for w in self.W[:64])
+                    plt.savefig(os.path.join(save_to, '%02d_%08d.png' %
+                                             (itr, vi)))
+                    plt.clf()
+                    plt.close(fig)
+                if vi % 300 == 0:
+                    time.sleep(15)
+                v = X[vi].reshape(self.v_shape)           
                 dW, db, dc = self._gradients(v)
                 self._apply_gradients(dW, db, dc)
                 sum_err += self._batch_err(v)
@@ -136,17 +142,11 @@ class ConvRBM(object):
         # h_mean = logistic_sigmoid(h)
         return h_mean
 
-    # def _sample_hiddens(self, h_mean):
-    #     return self._bernoulli(h_mean)
-
     def _mean_visible(self, h):
         v = np.zeros(self.v_shape)
         for k in xrange(self.n_hiddens):
             v += conv2(h[k], self.W[k], 'full')
         return logistic_sigmoid(v + self.b)
-        
-    # def _sample_visible(self, h):        
-    #     return self._bernoulli(_mean_visible)
 
     def _bernoulli(self, probs):
         res = np.zeros(probs.shape)
@@ -165,40 +165,32 @@ class ConvRBM(object):
         return v_mean, h_mean, h_mean0
 
 
-        
-def run_digits():
-    import os
-    from sklearn import datasets
-    digits = datasets.load_digits()
-    # custom_data_home = os.getcwd() + '/sk_data'
-    # digits = datasets.fetch_mldata('MNIST original', data_home=custom_data_home)
-    X = np.asarray(digits.data, 'float32')
-    X /= 256
-    model = BernoulliRBM(n_components=100, n_iter=20, learning_rate=.06,
-                        verbose=True)
-    model.fit(X)
-    return model
-
 
 def run_mnist():
     import os
     from sklearn import datasets
-    custom_data_home = os.getcwd() + '/sk_data'
+    custom_data_home = '~/.sk_data'
     digits = datasets.fetch_mldata('MNIST original', data_home=custom_data_home)
     ds_size = digits.data.shape[0]
-    n_obs = 8192
-    X = digits.data[np.random.randint(0, ds_size, n_obs)].astype('float32')    
+    n_obs = 2048
+    X = digits.data[np.random.randint(0, ds_size, n_obs)].astype('float32')
+    # X = digits.data[:n_obs].astype('float32')    
     X /= 256.
     print('Building RBM')
-    model = ConvRBM((28, 28), 28*28/2, w_size=11, n_iter=5, verbose=True)
-    model.fit(X)
+    global model
+    model = ConvRBM((28, 28), 28*28/2, w_size=11, n_iter=3, n_gibbs=4,
+                    verbose=True)
+    model.fit(X, save_to='../data/weights')
     return model
 
+# Good Configs:
+# ConvRBM((28, 28), 28*28/2, w_size=11, n_iter=3, n_gibbs=5, verbose=True)
+    
 def run_mnist_noconv():
     import os
     from sklearn import datasets
     from sklearn.neural_network import BernoulliRBM
-    custom_data_home = os.getcwd() + '/sk_data'
+    custom_data_home = '~/.sk_data'
     digits = datasets.fetch_mldata('MNIST original', data_home=custom_data_home)
     ds_size = digits.data.shape[0]
     n_obs = 1000

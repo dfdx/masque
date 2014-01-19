@@ -33,7 +33,7 @@ def conv2(im, kernel, mode='same', dst=None):
     return dst
 
 
-def smartshow(ims, subtitle='Images'):
+def implot(ims, subtitle='Images'):
     """
     Takes one image or list of images and tries to display them in a most
     convenient way.
@@ -57,15 +57,65 @@ def smartshow(ims, subtitle='Images'):
         plt.suptitle(subtitle, fontsize=16)
         plt.show()
 
+smartshow = implot
+        
+def mkfig(ims, subtitle='Images'):
+    fig = plt.figure()
+    if type(ims) == np.ndarray:
+        fig.imshow(ims, cmap=plt.cm.gray, interpolation='nearest')        
+    else:
+        ims = list(ims)
+        n = len(ims)
+        rows = math.floor(math.sqrt(n))
+        cols = math.ceil(n / float(rows))
+        for i, im in enumerate(ims):
+            plt.subplot(rows, cols, i + 1)
+            plt.imshow(im, cmap=plt.cm.gray,
+                       interpolation='nearest')
+            plt.xticks(())
+            plt.yticks(())
+        plt.suptitle(subtitle, fontsize=16)
+    return fig
+
+
+def rect_xy2ij(rect):
+    return np.array([rect[1], rect[0], rect[3], rect[2]])
+    
 
 def facedet(im, cascade=None, cascade_xml='haarcascade_frontalface_alt2.xml'):
+    """
+    WARNING: returns list of rectangles as [[x, y, w, h], ...],
+    i.e. xy coordinates and not ij.
+    This is going to be changed in future.
+    """
     if len(im.shape) != 2:
         im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
     if not cascade:
         cascade = cv2.CascadeClassifier(cascade_xml)
     im = cv2.equalizeHist(im)
-    face_rects = cascade.detectMultiScale(im)
+    face_rects_xy = cascade.detectMultiScale(im)
+    face_rects = np.vstack([rect_xy2ij(rect_xy) for rect_xy in face_rects_xy])
     return face_rects
+
+    
+def rect_slice(rect):
+    """
+    Translates rect (as returned by facedet) to 4 points
+    """
+    i0, j0 = rect[:2]
+    i1 = i0 + rect[2]
+    j1 = j0 + rect[3]
+    return [i0, j0, i1, j1]
+
+    
+def face_coords(face_rect):
+    """
+    Translates rect (as returned by facedet) to 4 points
+    """
+    i0, j0 = face_rect[:2]
+    i1 = i0 + face_rect[2]
+    j1 = j0 + face_rect[3]
+    return np.array([[i0, j0], [i0, j1], [i1, j1], [i1, j0]])
     
 def list_images(path):
     return glob.glob(path + '/*.jpg') + \
@@ -81,14 +131,38 @@ def findfiles(path, regex):
     return matches
 
 
-def draw_points(im, points):
+def draw_points(im, points, xy=False):
+    if not xy:
+        points = [pt[::-1] for pt in points]   # ij to xy
     for pt in points:
         cv2.circle(im, tuple(pt), 5, (0, 255, 0), -1)
     return im
 
-def show_points(im, points):
+def show_points(im, points, xy=False):
     im = im.copy()
-    im = draw_points(im, points)
+    im = draw_points(im, points, xy=False)
     smartshow(im)
 
+def parse_coords(line):
+    coords =  map(float, line.strip().split())
+    coords = coords[::-1]   # xy to ij
+    return coords
     
+def read_landmarks(path):
+    with open(path, 'r') as fin:
+        lines = fin.readlines()
+        points = [parse_coords(line) for line in lines]
+        return np.array(points).astype(np.uint32)
+
+def write_landmarks(path, lms):
+    with open(path, 'w') as fout:
+        for lm in lms:
+            fout.write('\t%d\t%d\n' % (lm[0], lm[1]))
+    
+        
+def move_landmarks(landmarks, new_origin):
+    """
+    Moves all landmarks according to new origin.
+    """
+    oi, oj = new_origin
+    return np.array([[lm[0] - oi, lm[1] - oj] for lm in landmarks])

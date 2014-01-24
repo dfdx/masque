@@ -13,10 +13,16 @@ class PatchTransformer(BaseEstimator, TransformerMixin):
             self.patch_shape = (patch_size, patch_size)
         self.n_patches = n_patches
 
-    def fit_transform(self, X):
+    def fit(self, X, y=None):
+        return self
+        
+    def transform(self, X, y=None):
         patches = []
         for x in X:
             for i in range(self.n_patches):
                 patch = get_patch(x.reshape(self.im_shape), self.patch_shape)
                 patches.append(patch)
         return np.vstack(patch.flatten() for patch in patches)
+
+    def fit_transform(self, X, y=None):
+        return self.transform(X, y)

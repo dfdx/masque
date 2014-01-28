@@ -5,21 +5,22 @@ import os
 import glob
 import fnmatch
 import math
+import time
 import numpy as np
 import cv2
 from matplotlib import pylab as plt
 from scipy.misc import imread
 
 
-def conv2(im, kernel, mode='same', dst=None):    
-    source = im    
+def conv2(im, kernel, mode='same', dst=None):
+    source = im
     if mode == 'full':
         additional_rows = kernel.shape[0] - 1
         additional_cols = kernel.shape[1] - 1
-        source = cv2.copyMakeBorder(im, 
+        source = cv2.copyMakeBorder(im,
                            (additional_rows + 1) / 2, additional_rows / 2,
                            (additional_cols + 1) / 2, additional_cols / 2,
-                           cv2.BORDER_CONSTANT, value = 0)    
+                           cv2.BORDER_CONSTANT, value = 0)
     anchor = (kernel.shape[1] - kernel.shape[1]/2 - 1,
               kernel.shape[0] - kernel.shape[0]/2 - 1)
     if not dst:
@@ -28,9 +29,44 @@ def conv2(im, kernel, mode='same', dst=None):
     dst = cv2.filter2D(source, -1, fk, anchor=anchor, delta=0,
                  borderType=cv2.BORDER_CONSTANT)
     if mode == 'valid':
-        dst = dst[(kernel.shape[1]-1)/2 : dst.shape[1] - kernel.shape[1]/2, \
+        dst = dst[(kernel.shape[1]-1)/2 : dst.shape[1] - kernel.shape[1]/2,
                   (kernel.shape[0]-1)/2 : dst.shape[0] - kernel.shape[0]/2]
     return dst
+
+
+def conv_transform(X, filters, x_shape, mode='valid'):
+    """
+    Transforms data matrix X by applying each filter in filters,
+    flattening and stacking results
+
+    Params
+    ------
+    X : array of shape (M, N)
+        data matrix with M observation and N variables in each
+    filters : sequence of arrays
+        2D filters to apply to X
+    x_shape : tuple
+        shape of elements of X
+
+    Returns
+    -------
+    Transformed data matrix
+    """
+    # filtered = (conv2(X, flt).flatten() for flt in filters)
+    # TODO(a_zhabinski) optimize. One minor optimization is to
+    #   preallocate Xt and copy results there directly, without storing in list
+    filtered = []
+    for x in X:
+        x_filtered = []
+        for flt in filters:
+            new_x = conv2(x.reshape(x_shape), flt, mode=mode).flatten()
+            x_filtered.append(new_x)
+            # print(new_x)
+        filtered.append(np.hstack(x_filtered))
+        # print('filter applied, sleeping...')
+        # time.sleep(3)
+    Xt = np.vstack(filtered)
+    return Xt
 
 
 def implot(ims, subtitle='Images'):
@@ -58,11 +94,11 @@ def implot(ims, subtitle='Images'):
         plt.show()
 
 smartshow = implot
-        
+
 def mkfig(ims, subtitle='Images'):
     fig = plt.figure()
     if type(ims) == np.ndarray:
-        fig.imshow(ims, cmap=plt.cm.gray, interpolation='nearest')        
+        fig.imshow(ims, cmap=plt.cm.gray, interpolation='nearest')
     else:
         ims = list(ims)
         n = len(ims)
@@ -80,7 +116,7 @@ def mkfig(ims, subtitle='Images'):
 
 def rect_xy2ij(rect):
     return np.array([rect[1], rect[0], rect[3], rect[2]])
-    
+
 
 def facedet(im, cascade=None, cascade_xml='haarcascade_frontalface_alt2.xml'):
     """
@@ -97,7 +133,7 @@ def facedet(im, cascade=None, cascade_xml='haarcascade_frontalface_alt2.xml'):
     face_rects = np.vstack([rect_xy2ij(rect_xy) for rect_xy in face_rects_xy])
     return face_rects
 
-    
+
 def rect_slice(rect):
     """
     Translates rect (as returned by facedet) to 4 points
@@ -107,7 +143,7 @@ def rect_slice(rect):
     j1 = j0 + rect[3]
     return [i0, j0, i1, j1]
 
-    
+
 def face_coords(face_rect):
     """
     Translates rect (as returned by facedet) to 4 points
@@ -116,7 +152,7 @@ def face_coords(face_rect):
     i1 = i0 + face_rect[2]
     j1 = j0 + face_rect[3]
     return np.array([[i0, j0], [i0, j1], [i1, j1], [i1, j0]])
-    
+
 def list_images(path):
     return glob.glob(path + '/*.jpg') + \
         glob.glob(path + '/*.png') + \
@@ -126,7 +162,7 @@ def list_images(path):
 def findfiles(path, regex):
     matches = []
     for root, dirnames, filenames in os.walk(path):
-        for filename in fnmatch.filter(filenames, regex):            
+        for filename in fnmatch.filter(filenames, regex):
             matches.append(os.path.join(root, filename))
     return matches
 
@@ -147,7 +183,7 @@ def parse_coords(line):
     coords =  map(float, line.strip().split())
     coords = coords[::-1]   # xy to ij
     return coords
-    
+
 def read_landmarks(path):
     with open(path, 'r') as fin:
         lines = fin.readlines()
@@ -158,8 +194,8 @@ def write_landmarks(path, lms):
     with open(path, 'w') as fout:
         for lm in lms:
             fout.write('\t%d\t%d\n' % (lm[0], lm[1]))
-    
-        
+
+
 def move_landmarks(landmarks, new_origin):
     """
     Moves all landmarks according to new origin.
@@ -167,11 +203,11 @@ def move_landmarks(landmarks, new_origin):
     oi, oj = new_origin
     return np.array([[lm[0] - oi, lm[1] - oj] for lm in landmarks])
 
-    
+
 def get_patch(im, shape):
     """get_patch(im, shape) -> patch
-    
-    Extracts patch of speficied shape from an image. 
+
+    Extracts patch of speficied shape from an image.
     """
     h, w = shape
     max_i = im.shape[0] - h

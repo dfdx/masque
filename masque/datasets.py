@@ -10,7 +10,7 @@ from scipy.misc import imread
 def data_dir():
     """Get default data directory path"""
     mod_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(mod_dir, '..', 'data')
+    return os.path.join(mod_dir, '..', 'data', 'CK')
 
 
 def save_dataset(path, dataset):
@@ -26,7 +26,7 @@ def load_dataset(path):
     return npz['X'], npz['y']
 
 
-def _cohn_kanade(datadir, im_shape=(256, 256), na_val=-1):
+def _cohn_kanade(datadir, im_shape, na_val=-1):
     """Creates dataset (pair of X and y) from Cohn-Kanade
     image data (CK+)"""
     images = []
@@ -53,7 +53,7 @@ def _cohn_kanade(datadir, im_shape=(256, 256), na_val=-1):
     return np.vstack(images), np.array(labels)
 
 
-def cohn_kanade(datadir=None, labeled_only=False, force=False):
+def cohn_kanade(datadir=None, im_shape=(256, 256), labeled_only=False, force=False):
     """
     Load Cohn-Kanade dataset. If previously loaded and force is
     set to False (default), will read data from cached file
@@ -63,6 +63,8 @@ def cohn_kanade(datadir=None, labeled_only=False, force=False):
     datadir : string, optional
         Path to CK+ data directory. This directory should already
         have 'faces' subdir.
+    im_shape : tuple
+        shape of images to generate or get from cache
     labeled_only : boolean, optional
         If true, only data with labels will be loaded.
         Otherwise all data will be loaded and unlabeled examples
@@ -71,11 +73,11 @@ def cohn_kanade(datadir=None, labeled_only=False, force=False):
         Force reloading dataset from CK+ data. Default is False.
     """
     datadir = datadir or data_dir()
-    saved_dataset_file = os.path.join(datadir, 'CK.npz')
+    saved_dataset_file = os.path.join(datadir, 'CK_%s_%s.npz' % im_shape[:2])
     if not force and os.path.exists(saved_dataset_file):
         X, y = load_dataset(saved_dataset_file)
     else:
-        X, y = _cohn_kanade(datadir)
+        X, y = _cohn_kanade(datadir, im_shape)
         save_dataset(saved_dataset_file, (X, y))
     if labeled_only:
         X = X[y != -1]

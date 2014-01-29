@@ -8,6 +8,7 @@ import numpy as np
 from sklearn.pipeline import Pipeline
 from sklearn.neural_network import BernoulliRBM
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
 from sklearn.cross_validation import cross_val_score, train_test_split
 
 from masque.transform import PatchTransformer
@@ -21,7 +22,7 @@ conf_ex = {
         ('patch_trans', PatchTransformer((128, 128), (12, 12), n_patches=10)),
         ('rbm', BernoulliRBM(n_components=72, verbose=True)),
     ]),
-    'model' : LogisticRegression(),
+    'model' : SVC(kernel='linear', verbose=True),
     'pretrain_data' : lambda: datasets.cohn_kanade(im_shape=(128, 128)),
     'data' : lambda: datasets.cohn_kanade(im_shape=(128, 128),
                                      labeled_only=True),
@@ -58,9 +59,28 @@ def pretrain_conv(conf):
     log.error(Xt.shape)
     log.error(len(filters))
     del X
+    time.sleep(20)  # cool my poor CPU
     log.info('Building and cross-validating model')
-    model = conf['model']
-    scores = cross_val_score(model, Xt, y, cv=5)
+    model = conf['model']    
+    scores = cross_val_score(model, Xt, y, cv=2, verbose=True)
+    log.info('Accuracy: %f (+/- %f)' % (scores.mean(), scores.std() * 3))
+    log.info('Time taken: %d seconds' % (time.time() - start,))
+    return scores
+
+
+def plain_pixels(conf):
+    """
+    Runner that:
+
+    1. Fits pretrain_pipeline to pretrain_data
+    2. Transforms data with pretrain_pipeline
+    3. Runs cross-validation with pipeline and transformed data
+    """
+    start = time.time()
+    X, y = conf['data']()    
+    log.info('Building and cross-validating model')
+    model = conf['model']    
+    scores = cross_val_score(model, X, y, cv=10, verbose=True)
     log.info('Accuracy: %f (+/- %f)' % (scores.mean(), scores.std() * 3))
     log.info('Time taken: %d seconds' % (time.time() - start,))
     return scores

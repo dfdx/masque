@@ -8,6 +8,7 @@ import numpy as np
 from sklearn.pipeline import Pipeline
 from sklearn.neural_network import BernoulliRBM
 from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import SVC
 from sklearn.cross_validation import cross_val_score, train_test_split
 
@@ -51,15 +52,14 @@ def pretrain_conv(conf):
     filters = filters.reshape(len(filters), conf['filter_shape'][0],
                               conf['filter_shape'][1])
     log.info('Loading data')
+    global y
     X, y = conf['data']()
     log.info('Transforming data (convolution)')
-    log.error(filters.shape)
+    global Xt
     Xt = conv_transform(X, filters, conf['x_shape'])
-    log.error(X.shape)
-    log.error(Xt.shape)
-    log.error(len(filters))
     del X
-    time.sleep(20)  # cool my poor CPU
+    return # TODO
+    time.sleep(20)  # cool down my poor CPU
     log.info('Building and cross-validating model')
     model = conf['model']    
     scores = cross_val_score(model, Xt, y, cv=2, verbose=True)
@@ -84,3 +84,8 @@ def plain_pixels(conf):
     log.info('Accuracy: %f (+/- %f)' % (scores.mean(), scores.std() * 3))
     log.info('Time taken: %d seconds' % (time.time() - start,))
     return scores
+
+
+
+def test():
+    pass

@@ -5,6 +5,8 @@ import os
 import numpy as np
 import cv2
 from scipy.misc import imread
+from masque.utils import read_landmarks, read_label
+from masque.utils import normalize
 
 
 def data_dir():
@@ -53,10 +55,12 @@ def _cohn_kanade(datadir, im_shape, na_val=-1):
     return np.vstack(images), np.array(labels)
 
 
-def cohn_kanade(datadir=None, im_shape=(256, 256), labeled_only=False, force=False):
+def cohn_kanade(datadir=None, im_shape=(256, 256), labeled_only=False,
+                force=False):
     """
-    Load Cohn-Kanade dataset. If previously loaded and force is
-    set to False (default), will read data from cached file
+    Load images and labeld from Cohn-Kanade dataset. If previously
+    loaded and force is set to False (default), will read data from
+    cached file
 
     Params
     ------
@@ -64,7 +68,7 @@ def cohn_kanade(datadir=None, im_shape=(256, 256), labeled_only=False, force=Fal
         Path to CK+ data directory. This directory should already
         have 'faces' subdir.
     im_shape : tuple
-        shape of images to generate or get from cache
+        Shape of images to generate or get from cache
     labeled_only : boolean, optional
         If true, only data with labels will be loaded.
         Otherwise all data will be loaded and unlabeled examples
@@ -83,3 +87,46 @@ def cohn_kanade(datadir=None, im_shape=(256, 256), labeled_only=False, force=Fal
         X = X[y != -1]
         y = y[y != -1]
     return X, y
+
+
+def cohn_kanade_shapes(datadir=None, labeled_only=False, faces=True):
+    """
+    Loads annotations and labels from CK+ dataset
+
+    Params
+    ------
+    datadir : string
+        Path to CK+ data directory
+
+    """
+    datadir = datadir or data_dir()
+    landmarks = []
+    labels = []
+    lm_dir = 'face_landmarks' if faces else 'landmarks'
+    for lm_name in os.listdir(os.path.join(datadir, 'face_landmarks')):
+        label_name = lm_name.replace('.txt', '_emotion.txt')
+        lm_path = os.path.join(datadir, 'face_landmarks', lm_name)
+        label_path = os.path.join(datadir, 'labels', label_name)
+        landmarks.append(read_landmarks(lm_path).flatten())
+        if os.path.exists(label_path):
+            labels.append(read_label(label_path))
+        else:
+            labels.append(-1)
+    X, y = (np.vstack(landmarks), np.hstack(labels))
+    X = normalize(X)
+    if labeled_only:
+        return X[y != -1], y[y != -1]
+    else:
+        return X, y
+
+
+def mnist():
+    """MNIST dataset. Currently includes only X"""
+    # TODO: add y (labels)
+    # pylint: disable=no-member
+    digits = datasets.fetch_mldata('MNIST original', data_home='~/.sk_data')
+    ds_size = digits.data.shape[0]
+    X = digits.data[np.random.randint(0, ds_size, 10000)].astype('float32')
+    X /= 256.
+    return X, None
+        

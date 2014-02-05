@@ -3,7 +3,8 @@ from __future__ import print_function
 import sys
 import os
 import glob
-import fnmatch
+# import fnmatch
+import heapq
 import math
 import time
 import numpy as np
@@ -181,6 +182,7 @@ def show_points(im, points, xy=False):
 
 def parse_coords(line):
     coords =  map(float, line.strip().split())
+    coords = map(lambda x: x if x > 0 else 0, coords)  # fix negative coords
     coords = coords[::-1]   # xy to ij
     return coords
 
@@ -194,6 +196,11 @@ def write_landmarks(path, lms):
     with open(path, 'w') as fout:
         for lm in lms:
             fout.write('\t%d\t%d\n' % (lm[0], lm[1]))
+
+
+def read_label(path):
+    with open(path) as fin:
+        return int(float(fin.read().strip()))
 
 
 def move_landmarks(landmarks, new_origin):
@@ -215,3 +222,34 @@ def get_patch(im, shape):
     i = np.random.randint(0, max_i)
     j = np.random.randint(0, max_j)
     return im[i:i+h, j:j+w]
+
+
+def normalize(X):
+    """Normalize data: substract mean and divide by range"""
+    X = X.astype(np.float32)
+    # X = X - X.mean()
+    X = X / (X.max() - X.min())
+    return X
+
+    
+def most_active_points(im, flt, n=10):
+    """
+    Finds coordinates of n points that are actiavated the most
+    by specified filter
+
+    Params
+    ------
+    im : ndarray
+        image to be checked
+    flt : 2D-array
+        filter to be applied
+    n : number of most active 
+    """
+    # dummy implementation
+    new_im = conv2(im, flt, mode='same')
+    points = []
+    for i in range(new_im.shape[0]):
+        for j in range(new_im.shape[1]):
+            points.append((i, j, new_im[i, j]))
+    top = heapq.nlargest(n, points, lambda t: t[2])
+    return [(i, j) for i, j, val in top]

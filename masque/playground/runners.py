@@ -38,7 +38,7 @@ def pretrain_conv(conf):
     time.sleep(20)  # cool down my poor CPU
     log.info('Building and cross-validating model')
     model = conf['model']
-    scores = cross_val_score(model, Xt, y, cv=2, verbose=True)
+    scores = cross_val_score(model, Xt, y, cv=10, verbose=True)
     log.info('Accuracy: %f (+/- %f)' % (scores.mean(), scores.std() * 3))
     log.info('Time taken: %d seconds' % (time.time() - start,))
     return scores

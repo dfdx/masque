@@ -70,7 +70,8 @@ class GaussianBernoulliRBM(BernoulliRBM):
         free_energy : array-like, shape (n_samples,)
             The value of the free energy.
         """
-        return ((v - self.intercept_visible_) / 2
+        vis_energy = ((v - self.intercept_visible_) / 2).sum(axis=1)
+        return (vis_energy
                 - safe_sparse_dot(v, self.intercept_visible_)
                 - np.log1p(np.exp(safe_sparse_dot(v, self.components_.T)
                                   + self.intercept_hidden_)).sum(axis=1))

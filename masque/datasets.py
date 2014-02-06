@@ -5,6 +5,7 @@ import os
 import numpy as np
 import cv2
 from scipy.misc import imread
+from sklearn import datasets as skdatasets
 from masque.utils import read_landmarks, read_label
 from masque.utils import normalize
 
@@ -124,7 +125,7 @@ def mnist():
     """MNIST dataset. Currently includes only X"""
     # TODO: add y (labels)
     # pylint: disable=no-member
-    digits = datasets.fetch_mldata('MNIST original', data_home='~/.sk_data')
+    digits = skdatasets.fetch_mldata('MNIST original', data_home='~/.sk_data')
     ds_size = digits.data.shape[0]
     X = digits.data[np.random.randint(0, ds_size, 10000)].astype('float32')
     X /= 256.

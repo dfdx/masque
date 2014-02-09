@@ -10,6 +10,7 @@ from sklearn.svm import SVC
 
 from masque import datasets
 from masque.transform import PatchTransformer
+from masque.rbm import GaussianBernoulliRBM
 from masque.playground.runners import plain_classify, pretrain_classify
 
 

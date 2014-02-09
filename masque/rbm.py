@@ -110,4 +110,5 @@ class GaussianBernoulliRBM(BernoulliRBM):
 
         fe = self._free_energy(v)
         fe_ = self._free_energy(v_)
+        # print((fe_ - fe).mean())
         return v.shape[1] * logistic_sigmoid(fe_ - fe, log=True)

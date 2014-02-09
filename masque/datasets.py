@@ -18,15 +18,22 @@ def data_dir():
 
 def save_dataset(path, dataset):
     """Serializes and saves dataset (tuple of X and y)
-    to a file"""
-    assert len(dataset) == 2, 'Dataset should be tuple of (X, y)'
-    np.savez(path, X=dataset[0], y=dataset[1])
+    to a file"""                            
+    np.savez(path, data=dataset)
 
 
 def load_dataset(path):
     """Loads dataset (tuple of X and y) from pickled object"""
     npz = np.load(path)
-    return npz['X'], npz['y']
+    return npz['data']
+
+def standartize(im, new_size):
+    if len(im.shape) > 2:
+        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    im = cv2.resize(im, new_size[::-1])  # NOTE: converting to XY coordinates
+    im = cv2.equalizeHist(im)
+    im = im.astype(np.float32) / im.max()
+    return im
 
 
 def _cohn_kanade(datadir, im_shape, na_val=-1):
@@ -103,7 +110,7 @@ def cohn_kanade_shapes(datadir=None, labeled_only=False, faces=True):
     datadir = datadir or data_dir()
     landmarks = []
     labels = []
-    lm_dir = 'face_landmarks' if faces else 'landmarks'
+    # lm_dir = 'face_landmarks' if faces else 'landmarks'
     for lm_name in os.listdir(os.path.join(datadir, 'face_landmarks')):
         label_name = lm_name.replace('.txt', '_emotion.txt')
         lm_path = os.path.join(datadir, 'face_landmarks', lm_name)
@@ -121,6 +128,81 @@ def cohn_kanade_shapes(datadir=None, labeled_only=False, faces=True):
         return X, y
 
 
+def _cohn_kanade_orig(datadir, im_shape, na_val=-1):
+    """Creates dataset (pair of X and y) from Cohn-Kanade
+    image data (CK+)"""
+    images = []
+    landmarks = []
+    labels = []
+    n = 0
+    for name in os.listdir(os.path.join(datadir, 'images')):
+        n += 1
+        print('processed %d' % n)
+        impath = os.path.join(datadir, 'images', name)
+        lmname = name.replace('.png', '_landmarks.txt')
+        lmpath = os.path.join(datadir, 'landmarks', lmname)
+        labelname = name.replace('.png', '_emotion.txt')
+        labelpath = os.path.join(datadir, 'labels', labelname)
+        try:
+            im = imread(impath)
+        except IOError:
+            continue
+        im = standartize(im, im_shape)
+        images.append(im.flatten())
+        landmarks.append(read_landmarks(lmpath).flatten())
+        # processing labels
+        if os.path.exists(labelpath):
+            labels.append(read_label(labelpath))
+        else:
+            labels.append(-1)
+    return np.vstack(images), np.array(landmarks), np.array(labels)
+
+
+def cohn_kanade_orig(datadir=None, im_shape=(100, 128), labeled_only=False,
+                force=False):
+    """
+    Load original Cohn-Kanade dataset.
+
+    Params
+    ------
+    datadir : string, optional
+        Path to CK+ data directory. This directory should already
+        have 'faces' subdir.
+    im_shape : tuple
+        Shape of images to generate or get from cache
+    labeled_only : boolean, optional
+        If true, only data with labels will be loaded.
+        Otherwise all data will be loaded and unlabeled examples
+        marked with -1 for y. Default is False.
+    force : boolean, optional
+        Force reloading dataset from CK+ data. Default is False.
+
+    Returns
+    -------
+    images : 2D array
+        Images from CK+ dataset. Each row corresponds to flattened image
+    landmarks : 2D array
+        Array of landmarks. Each row corresponds to flattened matrix of
+        landmarks
+    labels : 1D array
+        Array of labels. Labels are number from 0 to 7 or -1, if there's no
+        label available for corresponding image
+    """
+    datadir = datadir or data_dir()
+    saved_dataset_file = os.path.join(datadir, 'CKorig_%s_%s.npz'
+                                      % im_shape[:2])
+    if not force and os.path.exists(saved_dataset_file):
+        images, landmarks, labels = load_dataset(saved_dataset_file)
+    else:
+        images, landmarks, labels = _cohn_kanade_orig(datadir, im_shape)
+        save_dataset(saved_dataset_file, (images, landmarks, labels))
+    if labeled_only:
+        images = images[labels != -1]
+        landmarks = landmarks[labels != -1]
+        labels = labels[labels != -1]
+    return images, landmarks, labels
+
+
 def mnist():
     """MNIST dataset. Currently includes only X"""
     # TODO: add y (labels)
@@ -130,4 +212,3 @@ def mnist():
     X = digits.data[np.random.randint(0, ds_size, 10000)].astype('float32')
     X /= 256.
     return X, None
-        

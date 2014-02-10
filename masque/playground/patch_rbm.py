@@ -67,9 +67,9 @@ ck_grbm_svc = {
     ]),
     'model' : SVC(kernel='linear', verbose=True),
     'pretrain_data' : lambda: datasets.cohn_kanade_orig(im_shape=_IM_SHAPE,
-                                                   idx=[0, 2], force=True),
+                                                   idx=[0, 2]),
     'data' : lambda: datasets.cohn_kanade_orig(im_shape=_IM_SHAPE,
-                                     labeled_only=True, idx=[0, 2], force=True),
+                                     labeled_only=True, idx=[0, 2]),
     'x_shape' : _IM_SHAPE,
     'filter_shape' : _PS4,
 }

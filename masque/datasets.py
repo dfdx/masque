@@ -16,18 +16,18 @@ def data_dir():
     return os.path.join(mod_dir, '..', 'data', 'CK')
 
 
-def save_dataset(path, dataset):
+def save_dataset(path, *data):
     """Serializes and saves dataset (tuple of X and y)
     to a file"""
-    # data = {'x%d' % i: datum for i, datum in enumerate(dataset)}
-    np.savez(path, data=dataset)
+    np.savez(path, *data)
 
 
 def load_dataset(path):
     """Loads dataset (tuple of X and y) from pickled object"""
     npz = np.load(path)
-    return npz['data']
+    return [npz[k] for k in sorted(npz.keys())]
 
+    
 def standartize(im, new_size):
     if len(im.shape) > 2:
         im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
@@ -91,7 +91,7 @@ def cohn_kanade(datadir=None, im_shape=(256, 256), labeled_only=False,
         X, y = load_dataset(saved_dataset_file)
     else:
         X, y = _cohn_kanade(datadir, im_shape)
-        save_dataset(saved_dataset_file, (X, y))
+        save_dataset(saved_dataset_file, X, y)
     if labeled_only:
         X = X[y != -1]
         y = y[y != -1]
@@ -188,6 +188,9 @@ def cohn_kanade_orig(datadir=None, im_shape=(100, 128), labeled_only=False,
     labels : 1D array
         Array of labels. Labels are number from 0 to 7 or -1, if there's no
         label available for corresponding image
+    idx : sequence of ints
+        Indexes of items to return: 0 stands for images, 1 - for landmarks
+        and 2 - for labels
     """
     datadir = datadir or data_dir()
     saved_dataset_file = os.path.join(datadir, 'CKorig_%s_%s.npz'
@@ -196,7 +199,7 @@ def cohn_kanade_orig(datadir=None, im_shape=(100, 128), labeled_only=False,
         images, landmarks, labels = load_dataset(saved_dataset_file)
     else:
         images, landmarks, labels = _cohn_kanade_orig(datadir, im_shape)
-        save_dataset(saved_dataset_file, (images, landmarks, labels))
+        save_dataset(saved_dataset_file, images, landmarks, labels)
     if labeled_only:
         images = images[labels != -1]
         landmarks = landmarks[labels != -1]

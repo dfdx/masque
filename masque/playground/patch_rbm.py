@@ -2,6 +2,7 @@
 Tests for patch-based RBM
 """
 import numpy as np
+from operator import itemgetter
 from sklearn.pipeline import Pipeline
 from sklearn.neural_network import BernoulliRBM
 from sklearn.svm import SVC
@@ -56,6 +57,7 @@ gb_rbm_svc = {
     'filter_shape' : _PS3,
 }
 
+
 _IM_SHAPE = (200, 256)
 _PS4 = (12, 12)
 ck_grbm_svc = {
@@ -64,11 +66,12 @@ ck_grbm_svc = {
         ('rbm', GaussianBernoulliRBM(n_components=32, verbose=True)),
     ]),
     'model' : SVC(kernel='linear', verbose=True),
-    'pretrain_data' : lambda: datasets.cohn_kanade_orig(im_shape=_IM_SHAPE)[[0, 2]],
+    'pretrain_data' : lambda: datasets.cohn_kanade_orig(im_shape=_IM_SHAPE,
+                                                   idx=[0, 2], force=True),
     'data' : lambda: datasets.cohn_kanade_orig(im_shape=_IM_SHAPE,
-                                     labeled_only=True)[[0, 2]],
+                                     labeled_only=True, idx=[0, 2], force=True),
     'x_shape' : _IM_SHAPE,
-    'filter_shape' : _PS3,
+    'filter_shape' : _PS4,
 }
 
 

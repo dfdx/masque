@@ -18,7 +18,8 @@ def data_dir():
 
 def save_dataset(path, dataset):
     """Serializes and saves dataset (tuple of X and y)
-    to a file"""                            
+    to a file"""
+    # data = {'x%d' % i: datum for i, datum in enumerate(dataset)}
     np.savez(path, data=dataset)
 
 
@@ -159,7 +160,7 @@ def _cohn_kanade_orig(datadir, im_shape, na_val=-1):
 
 
 def cohn_kanade_orig(datadir=None, im_shape=(100, 128), labeled_only=False,
-                force=False):
+                     force=False, idx=(0, 1, 2)):
     """
     Load original Cohn-Kanade dataset.
 
@@ -200,7 +201,7 @@ def cohn_kanade_orig(datadir=None, im_shape=(100, 128), labeled_only=False,
         images = images[labels != -1]
         landmarks = landmarks[labels != -1]
         labels = labels[labels != -1]
-    return images, landmarks, labels
+    return tuple([(images, landmarks, labels)[i] for i in idx])
 
 
 def mnist():

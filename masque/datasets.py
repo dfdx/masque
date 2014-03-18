@@ -2,12 +2,20 @@
 Dataset utilities and one-time functions
 """
 import os
+import glob
+import re
+import itertools as it
+import logging
 import numpy as np
 import cv2
 from scipy.misc import imread
 from sklearn import datasets as skdatasets
 from masque.utils import read_landmarks, read_label
 from masque.utils import normalize
+from masque.utils import interp_list
+
+
+log = logging.getLogger()
 
 
 def data_dir():
@@ -27,14 +35,25 @@ def load_dataset(path):
     npz = np.load(path)
     return [npz[k] for k in sorted(npz.keys())]
 
-    
-def standartize(im, new_size):
+
+def standartize(im, new_size=(128, 128)):
     if len(im.shape) > 2:
         im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
     im = cv2.resize(im, new_size[::-1])  # NOTE: converting to XY coordinates
     im = cv2.equalizeHist(im)
     im = im.astype(np.float32) / im.max()
     return im
+
+
+def mnist():
+    """MNIST dataset. Currently includes only X"""
+    # TODO: add y (labels)
+    # pylint: disable=no-member
+    digits = skdatasets.fetch_mldata('MNIST original', data_home='~/.sk_data')
+    ds_size = digits.data.shape[0]
+    X = digits.data[np.random.randint(0, ds_size, 10000)].astype('float32')
+    X /= 256.
+    return X, None
 
 
 def _cohn_kanade(datadir, im_shape, na_val=-1):
@@ -207,12 +226,117 @@ def cohn_kanade_orig(datadir=None, im_shape=(100, 128), labeled_only=False,
     return tuple([(images, landmarks, labels)[i] for i in idx])
 
 
-def mnist():
-    """MNIST dataset. Currently includes only X"""
-    # TODO: add y (labels)
-    # pylint: disable=no-member
-    digits = skdatasets.fetch_mldata('MNIST original', data_home='~/.sk_data')
-    ds_size = digits.data.shape[0]
-    X = digits.data[np.random.randint(0, ds_size, 10000)].astype('float32')
-    X /= 256.
-    return X, None
+def _parse_ck_name(name):
+    subj_s, label_s, item_s = name.split('_')[:3]
+    subj, label = int(subj_s[1:]), int(label_s),
+    item = int(item_s.split('.')[0])
+    return (subj, label, item)
+
+def _make_ck_name(subj, label, item):
+    return 'S%03d_%03d_%08d' % (subj, label, item)
+
+def read_normalize(image_file):
+    im = imread(image_file)
+    return normalize(im)
+
+
+def _ck_subj_ser(name):
+    return _parse_ck_name(name)[:2]
+
+
+class CKSeries(object):
+    """
+    Object that represents single images series (one expression) in
+    Cohn-Kanade dataset
+    """
+
+    def __init__(self, subj, ser_id, label, landmarks, images):
+        self.subj = subj
+        self.ser_id = ser_id
+        self.label = label
+        self.landmarks = landmarks
+        self.images = images
+
+    def __repr__(self):
+        return ('CKSeries(subj=%d,ser_id=%d,label=%d,n_images=%d)' %
+                (self.subj, self.ser_id, self.label, len(self.images)))
+
+    def __str__(self):
+        return self.__repr__()
+
+
+class CKDataset(object):
+
+    def __init__(self, datadir=None, preprocess=standartize):
+        self.data = []
+        self.load(datadir, preprocess)
+
+    def get_label(self, subj, ser_id):
+        file_pattern = os.path.join(self.datadir, 'labels', 'S%03d_%03d_*.txt'
+                                    % (subj, ser_id))
+        files = glob.glob(file_pattern)
+        if len(files) == 1:
+            return read_label(files[0])
+        elif len(files) == 0:
+            return -1
+        else:
+            raise Exception("Found more than 1 label file for series: %s"
+                            % files)
+
+    def get_landmarks(self, image_paths):
+        landmarks = []
+        for im_path in image_paths:
+            lm_path = (im_path.replace('/faces/', '/face_landmarks/')
+                       .replace('.png', '.txt'))
+            landmarks.append(read_landmarks(lm_path))
+        return landmarks
+
+
+    def load(self, datadir, preprocess):
+        self.datadir = datadir or data_dir()
+        image_files = sorted(os.listdir(os.path.join(self.datadir, 'faces')))
+        log.info('Found %d images' % len(image_files))
+        series = it.groupby(image_files, key=_ck_subj_ser)
+        for k, g in series:
+            subj, ser_id = k
+            log.info('Processing subject %s, series %s' % (subj, ser_id))
+            image_paths = [os.path.join(self.datadir, 'faces', im_file)
+                           for im_file in g]
+            images = [preprocess(imread(im_path)) for im_path in image_paths]
+            landmarks = self.get_landmarks(image_paths)
+            label = self.get_label(subj, ser_id)
+            self.data.append(CKSeries(subj, ser_id, label, landmarks, images))
+        return series
+
+    def __getitem__(self, index):
+        return self.data[index]
+
+    def __repr__(self):
+        return 'CKDataset(n_items=%d)' % len(self.data)
+
+    def __str__(self):
+        return self.__repr__()
+
+
+def ck_lm_series(datadir=None, align_to=20, labeled_only=False):
+    """
+    Subset of Cohn-Kanade dataset with face landmark series as X
+    and labels as y
+    """
+    ck_dataset = CKDataset(datadir)
+    X_lst = []
+    y_lst = []
+    for item in ck_dataset.data:
+        landmarks = [lm.flatten() for lm in item.landmarks]
+        landmarks = interp_list(landmarks, align_to)
+        lm_image = np.vstack(landmarks)
+        X_lst.append(lm_image.flatten())
+        y_lst.append(item.label)
+    X = np.vstack(X_lst)
+    y = np.array(y_lst)
+    del ck_dataset
+    if labeled_only:
+        return X[y != -1], y[y != -1]
+    else:
+        return X, y
+        

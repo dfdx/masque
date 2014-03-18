@@ -172,12 +172,12 @@ def draw_points(im, points, xy=False):
     if not xy:
         points = [pt[::-1] for pt in points]   # ij to xy
     for pt in points:
-        cv2.circle(im, tuple(pt), 5, (0, 255, 0), -1)
+        cv2.circle(im, tuple(pt), 2, (0, 255, 0), -1)
     return im
 
 def show_points(im, points, xy=False):
     im = im.copy()
-    im = draw_points(im, points, xy=False)
+    im = draw_points(im, points, xy)
     smartshow(im)
 
 def parse_coords(line):
@@ -253,3 +253,18 @@ def most_active_points(im, flt, n=10):
             points.append((i, j, new_im[i, j]))
     top = heapq.nlargest(n, points, lambda t: t[2])
     return [(i, j) for i, j, val in top]
+
+    
+def interp_list(lst, new_length):
+    """
+    'Shrinks' or 'stratches' lst by removing or replicating elements
+    """
+    k = float(len(lst)) / new_length    
+    new_lst = [None] * new_length 
+    for i in range(new_length):
+        j = int(i * k)
+        new_lst[i] = lst[j]
+    return new_lst
+
+
+        

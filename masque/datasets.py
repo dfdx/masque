@@ -339,4 +339,23 @@ def ck_lm_series(datadir=None, align_to=20, labeled_only=False):
         return X[y != -1], y[y != -1]
     else:
         return X, y
-        
+
+def ck_lm_last(datadir=None, align_to=20, labeled_only=False):
+    """
+    Subset of Cohn-Kanade dataset with face landmarks expressing last
+    keypoint configuration in a series as X and labels as y
+    """
+    ck_dataset = CKDataset(datadir)
+    X_lst = []
+    y_lst = []
+    for item in ck_dataset.data:
+        landmarks = item.landmarks[-1]
+        X_lst.append(landmarks.flatten())
+        y_lst.append(item.label)
+    X = np.vstack(X_lst)
+    y = np.array(y_lst)
+    del ck_dataset
+    if labeled_only:
+        return X[y != -1], y[y != -1]
+    else:
+        return X, y

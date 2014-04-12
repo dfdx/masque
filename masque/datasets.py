@@ -13,6 +13,9 @@ from sklearn import datasets as skdatasets
 from masque.utils import read_landmarks, read_label
 from masque.utils import normalize
 from masque.utils import interp_list
+from masque.utils import delaunay
+import pwa # from pwa.so
+
 
 
 log = logging.getLogger()
@@ -43,6 +46,15 @@ def standartize(im, new_size=(128, 128)):
     im = cv2.equalizeHist(im)
     im = im.astype(np.float32) / im.max()
     return im
+
+def standartize_lms(lms, old_size, new_size=(128, 128)):
+    i_scale = float(new_size[0]) / old_size[0]
+    j_scale = float(new_size[1]) / old_size[1]
+    lms_result = np.zeros(lms.shape)
+    lms_result[:, 0] = lms[:, 0] * i_scale
+    lms_result[:, 1] = lms[:, 1] * j_scale
+    return lms_result.astype(np.uint32)
+    
 
 
 def mnist():
@@ -302,8 +314,10 @@ class CKDataset(object):
             log.info('Processing subject %s, series %s' % (subj, ser_id))
             image_paths = [os.path.join(self.datadir, 'faces', im_file)
                            for im_file in g]
-            images = [preprocess(imread(im_path)) for im_path in image_paths]
-            landmarks = self.get_landmarks(image_paths)
+            orig_images = [imread(im_path) for im_path in image_paths]
+            images = [preprocess(orig_im) for orig_im in orig_images]
+            landmarks = [standartize_lms(lms, orig_images[0].shape[:2])
+                         for lms in self.get_landmarks(image_paths)]
             label = self.get_label(subj, ser_id)
             self.data.append(CKSeries(subj, ser_id, label, landmarks, images))
         return series
@@ -340,7 +354,7 @@ def ck_lm_series(datadir=None, align_to=20, labeled_only=False):
     else:
         return X, y
 
-def ck_lm_last(datadir=None, align_to=20, labeled_only=False):
+def ck_lm_last(datadir=None, labeled_only=False):
     """
     Subset of Cohn-Kanade dataset with face landmarks expressing last
     keypoint configuration in a series as X and labels as y
@@ -359,3 +373,35 @@ def ck_lm_last(datadir=None, align_to=20, labeled_only=False):
         return X[y != -1], y[y != -1]
     else:
         return X, y
+
+
+def ck_lm_pwa(datadir=None, ck_dataset=None, labeled_only=False):
+    """
+    Subset of Cohn-Kanade dataset with face landmarks as X1,
+    faces, aligend to a mean some shape, as X2, and labels as y
+    """
+    if not ck_dataset:
+        ck_dataset = CKDataset(datadir)
+    ref_lms = ck_dataset.data[10].landmarks[0]
+    triangles = delaunay(ref_lms)
+    X1_lst = []
+    X2_lst = []
+    y_lst = []
+    for item in ck_dataset.data:
+        landmarks = item.landmarks[-1]
+        X1_lst.append(landmarks.flatten())
+        orig_image = item.images[-1]
+        image = pwa.warpTriangle(orig_image, item.landmarks[-1], ref_lms,
+                                 triangles, orig_image.shape)
+        X2_lst.append(image.flatten())
+        y_lst.append(item.label)
+    X1 = np.vstack(X1_lst)
+    X2 = np.vstack(X2_lst)
+    y = np.array(y_lst)
+    del ck_dataset
+    if labeled_only:
+        return X1[y != -1], X2[y != -1], y[y != -1]
+    else:
+        return X1, X2, y
+
+

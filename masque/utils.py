@@ -10,6 +10,7 @@ import time
 import numpy as np
 import cv2
 from matplotlib import pylab as plt
+from matplotlib import delaunay as triang
 from scipy.misc import imread
 
 
@@ -113,6 +114,11 @@ def mkfig(ims, subtitle='Images'):
             plt.yticks(())
         plt.suptitle(subtitle, fontsize=16)
     return fig
+
+
+def delaunay(vector):
+    tri = triang.delaunay(vector[:, 0], vector[:, 1])[2]
+    return tri
 
 
 def rect_xy2ij(rect):
@@ -231,7 +237,7 @@ def normalize(X):
     X = X / (X.max() - X.min())
     return X
 
-    
+
 def most_active_points(im, flt, n=10):
     """
     Finds coordinates of n points that are actiavated the most
@@ -243,7 +249,7 @@ def most_active_points(im, flt, n=10):
         image to be checked
     flt : 2D-array
         filter to be applied
-    n : number of most active 
+    n : number of most active
     """
     # dummy implementation
     new_im = conv2(im, flt, mode='same')
@@ -254,17 +260,15 @@ def most_active_points(im, flt, n=10):
     top = heapq.nlargest(n, points, lambda t: t[2])
     return [(i, j) for i, j, val in top]
 
-    
+
 def interp_list(lst, new_length):
     """
     'Shrinks' or 'stratches' lst by removing or replicating elements
     """
-    k = float(len(lst)) / new_length    
-    new_lst = [None] * new_length 
+    k = float(len(lst)) / new_length
+    new_lst = [None] * new_length
     for i in range(new_length):
         j = int(i * k)
         new_lst[i] = lst[j]
     return new_lst
 
-
-        

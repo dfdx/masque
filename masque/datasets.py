@@ -378,7 +378,7 @@ def ck_lm_last(datadir=None, labeled_only=False):
 def ck_lm_pwa(datadir=None, ck_dataset=None, labeled_only=False):
     """
     Subset of Cohn-Kanade dataset with face landmarks as X1,
-    faces, aligend to a mean some shape, as X2, and labels as y
+    faces, aligend to a mean shape, as X2, and labels as y
     """
     if not ck_dataset:
         ck_dataset = CKDataset(datadir)

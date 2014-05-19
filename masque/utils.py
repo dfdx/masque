@@ -126,11 +126,6 @@ def rect_xy2ij(rect):
 
 
 def facedet(im, cascade=None, cascade_xml='haarcascade_frontalface_alt2.xml'):
-    """
-    WARNING: returns list of rectangles as [[x, y, w, h], ...],
-    i.e. xy coordinates and not ij.
-    This is going to be changed in future.
-    """
     if len(im.shape) != 2:
         im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
     if not cascade:
@@ -151,14 +146,14 @@ def rect_slice(rect):
     return [i0, j0, i1, j1]
 
 
-def face_coords(face_rect):
-    """
-    Translates rect (as returned by facedet) to 4 points
-    """
-    i0, j0 = face_rect[:2]
-    i1 = i0 + face_rect[2]
-    j1 = j0 + face_rect[3]
-    return np.array([[i0, j0], [i0, j1], [i1, j1], [i1, j0]])
+# def face_coords(face_rect):
+#     """
+#     Translates rect (as returned by facedet) to 4 points
+#     """
+#     i0, j0 = face_rect[:2]
+#     i1 = i0 + face_rect[2]
+#     j1 = j0 + face_rect[3]
+#     return np.array([[i0, j0], [i0, j1], [i1, j1], [i1, j0]])
 
 def list_images(path):
     return glob.glob(path + '/*.jpg') + \
@@ -271,4 +266,3 @@ def interp_list(lst, new_length):
         j = int(i * k)
         new_lst[i] = lst[j]
     return new_lst
-

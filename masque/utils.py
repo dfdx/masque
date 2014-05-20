@@ -1,9 +1,7 @@
 
-from __future__ import print_function
 import sys
 import os
 import glob
-# import fnmatch
 import heapq
 import math
 import time
@@ -36,41 +34,6 @@ def conv2(im, kernel, mode='same', dst=None):
     return dst
 
 
-def conv_transform(X, filters, x_shape, mode='valid'):
-    """
-    Transforms data matrix X by applying each filter in filters,
-    flattening and stacking results
-
-    Params
-    ------
-    X : array of shape (M, N)
-        data matrix with M observation and N variables in each
-    filters : sequence of arrays
-        2D filters to apply to X
-    x_shape : tuple
-        shape of elements of X
-
-    Returns
-    -------
-    Transformed data matrix
-    """
-    # filtered = (conv2(X, flt).flatten() for flt in filters)
-    # TODO(a_zhabinski) optimize. One minor optimization is to
-    #   preallocate Xt and copy results there directly, without storing in list
-    filtered = []
-    for x in X:
-        x_filtered = []
-        for flt in filters:
-            new_x = conv2(x.reshape(x_shape), flt, mode=mode).flatten()
-            x_filtered.append(new_x)
-            # print(new_x)
-        filtered.append(np.hstack(x_filtered))
-        # print('filter applied, sleeping...')
-        # time.sleep(3)
-    Xt = np.vstack(filtered)
-    return Xt
-
-
 def implot(ims, subtitle='Images'):
     """
     Takes one image or list of images and tries to display them in a most
@@ -95,7 +58,6 @@ def implot(ims, subtitle='Images'):
         plt.suptitle(subtitle, fontsize=16)
         plt.show()
 
-smartshow = implot
 
 def mkfig(ims, subtitle='Images'):
     fig = plt.figure()
@@ -116,86 +78,111 @@ def mkfig(ims, subtitle='Images'):
     return fig
 
 
-def delaunay(vector):
-    tri = triang.delaunay(vector[:, 0], vector[:, 1])[2]
-    return tri
-
-
-def rect_xy2ij(rect):
-    return np.array([rect[1], rect[0], rect[3], rect[2]])
-
+def rect_xy2ij(rect_xy):
+    """
+    Translates rectange from (x, y, w, h) to (i, j, h, w) by swapping 
+    appropriate coordinates.
+    """
+    return np.array([rect_xy[1], rect_xy[0], rect_xy[3], rect_xy[2]],
+                    dtype=rect_xy.dtype)
+    
 
 def facedet(im, cascade=None, cascade_xml='haarcascade_frontalface_alt2.xml'):
     if len(im.shape) != 2:
-        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)    
     if not cascade:
-        cascade = cv2.CascadeClassifier(cascade_xml)
+        if os.path.exists(cascade_xml):
+            cascade = cv2.CascadeClassifier(cascade_xml)
+        else:
+            raise IOError("Cascade training file doesn't exist: %s" 
+                          % cascade_xml)
     im = cv2.equalizeHist(im)
-    face_rects_xy = cascade.detectMultiScale(im)
+    face_rects_xy = cascade.detectMultiScale(im)    
     face_rects = np.vstack([rect_xy2ij(rect_xy) for rect_xy in face_rects_xy])
     return face_rects
 
 
-def rect_slice(rect):
-    """
-    Translates rect (as returned by facedet) to 4 points
-    """
-    i0, j0 = rect[:2]
-    i1 = i0 + rect[2]
-    j1 = j0 + rect[3]
-    return [i0, j0, i1, j1]
-
-
-# def face_coords(face_rect):
-#     """
-#     Translates rect (as returned by facedet) to 4 points
-#     """
-#     i0, j0 = face_rect[:2]
-#     i1 = i0 + face_rect[2]
-#     j1 = j0 + face_rect[3]
-#     return np.array([[i0, j0], [i0, j1], [i1, j1], [i1, j0]])
-
-def list_images(path):
-    return glob.glob(path + '/*.jpg') + \
-        glob.glob(path + '/*.png') + \
-        glob.glob(path + '/*.gif') + \
-        glob.glob(path + '/*.pgm')
-
-def findfiles(path, regex):
-    matches = []
-    for root, dirnames, filenames in os.walk(path):
-        for filename in fnmatch.filter(filenames, regex):
-            matches.append(os.path.join(root, filename))
-    return matches
-
-
-def draw_points(im, points, xy=False):
-    if not xy:
+def draw_landmarks(im, points, orientation='ij'):
+    if orientation == 'ij':
         points = [pt[::-1] for pt in points]   # ij to xy
+    elif orientation == 'xy':
+        pass
+    else: 
+        raise RuntimeError("Unkown landmark orientation type: %s" % orientation)
     for pt in points:
         cv2.circle(im, tuple(pt), 2, (0, 255, 0), -1)
     return im
 
-def show_points(im, points, xy=False):
-    im = im.copy()
-    im = draw_points(im, points, xy)
-    smartshow(im)
 
-def parse_coords(line):
+def plot_landmarks(im, points, orientation='ij'):
+    im = im.copy()
+    im = draw_landmarks(im, points, orientation)
+    implot(im)
+
+
+def delaunay(landmarks):
+    tri = triang.delaunay(landmarks[:, 0], landmarks[:, 1])[2]
+    return tri
+
+
+def draw_tri(im, lms, tri, copy=True, color=(0, 255, 0)):
+    """
+    Plot triangualtion
+
+    Params: 
+    im : ndarray
+        Image to draw on
+    lms : list of tuples or ndarray
+        Original landmarks
+    tri : ndarray
+        Trianguation, ndarray of shape Nx3, where each row shows indicies 
+        or triangle corners
+    """
+    if copy: 
+        im = im.copy()
+    for tr in tri: 
+        i0, j0 = lms[tr[0]]
+        i1, j1 = lms[tr[1]]
+        i2, j2 = lms[tr[2]]
+        cv2.line(im, (j0, i0), (j1, i1), color)
+        cv2.line(im, (j1, i1), (j2, i2), color)
+        cv2.line(im, (j2, i2), (j0, i0), color)
+    return im
+    
+    
+
+def _parse_coords(line):
     coords =  map(float, line.strip().split())
-    coords = map(lambda x: x if x > 0 else 0, coords)  # fix negative coords
-    coords = coords[::-1]   # xy to ij
+    coords = map(lambda x: x if x > 0 else 0, coords)  # fix negative coords    
     return coords
 
-def read_landmarks(path):
+
+def read_landmarks(path, orientation='xy'):
+    """
+    Read landmarks form path. 
+    Standard orientation is ij, if coords in file are stored as xy, 
+    orientation should be set to 'xy' (this is default behavior).
+    """
     with open(path, 'r') as fin:
         lines = fin.readlines()
-        points = [parse_coords(line) for line in lines]
-        return np.array(points).astype(np.uint32)
+        lms = [_parse_coords(line) for line in lines]
+        lms = np.array(lms).astype(np.uint32)
+        if orientation == 'xy':
+            lms[:, [0, 1]] = lms[:, [1, 0]]
+        return lms
 
-def write_landmarks(path, lms):
+
+def write_landmarks(path, lms, orientation='xy'):
+    """
+    Write landmarks to path. 
+    Standard orientation is ij, to store coordinates as xy, 
+    one should be set orientation to 'xy' (this is default behavior).
+    """
+    if orientation == 'xy':
+        lms = lms.copy()
+        lms[:, [0, 1]] = lms[:, [1, 0]]
     with open(path, 'w') as fout:
-        for lm in lms:
+        for lm in lms:            
             fout.write('\t%d\t%d\n' % (lm[0], lm[1]))
 
 
@@ -225,44 +212,44 @@ def get_patch(im, shape):
     return im[i:i+h, j:j+w]
 
 
-def normalize(X):
-    """Normalize data: substract mean and divide by range"""
-    X = X.astype(np.float32)
-    # X = X - X.mean()
-    X = X / (X.max() - X.min())
-    return X
+# def normalize(X):
+#     """Normalize data: substract mean and divide by range"""
+#     X = X.astype(np.float32)
+#     # X = X - X.mean()
+#     X = X / (X.max() - X.min())
+#     return X
 
 
-def most_active_points(im, flt, n=10):
-    """
-    Finds coordinates of n points that are actiavated the most
-    by specified filter
+# def most_active_points(im, flt, n=10):
+#     """
+#     Finds coordinates of n points that are actiavated the most
+#     by specified filter
 
-    Params
-    ------
-    im : ndarray
-        image to be checked
-    flt : 2D-array
-        filter to be applied
-    n : number of most active
-    """
-    # dummy implementation
-    new_im = conv2(im, flt, mode='same')
-    points = []
-    for i in range(new_im.shape[0]):
-        for j in range(new_im.shape[1]):
-            points.append((i, j, new_im[i, j]))
-    top = heapq.nlargest(n, points, lambda t: t[2])
-    return [(i, j) for i, j, val in top]
+#     Params
+#     ------
+#     im : ndarray
+#         image to be checked
+#     flt : 2D-array
+#         filter to be applied
+#     n : number of most active
+#     """
+#     # dummy implementation
+#     new_im = conv2(im, flt, mode='same')
+#     points = []
+#     for i in range(new_im.shape[0]):
+#         for j in range(new_im.shape[1]):
+#             points.append((i, j, new_im[i, j]))
+#     top = heapq.nlargest(n, points, lambda t: t[2])
+#     return [(i, j) for i, j, val in top]
 
 
-def interp_list(lst, new_length):
-    """
-    'Shrinks' or 'stratches' lst by removing or replicating elements
-    """
-    k = float(len(lst)) / new_length
-    new_lst = [None] * new_length
-    for i in range(new_length):
-        j = int(i * k)
-        new_lst[i] = lst[j]
-    return new_lst
+# def interp_list(lst, new_length):
+#     """
+#     'Shrinks' or 'stratches' lst by removing or replicating elements
+#     """
+#     k = float(len(lst)) / new_length
+#     new_lst = [None] * new_length
+#     for i in range(new_length):
+#         j = int(i * k)
+#         new_lst[i] = lst[j]
+#     return new_lst

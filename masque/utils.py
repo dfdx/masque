@@ -88,6 +88,29 @@ def rect_xy2ij(rect_xy):
     
 
 def facedet(im, cascade=None, cascade_xml='haarcascade_frontalface_alt2.xml'):
+    """
+    Detect faces on an image. 
+    NOTE: one can also specify different cascade classifier or training XML
+    to detect other objects.
+    
+    Params
+    ------
+    im : ndarray
+        Image to detect faces on
+    cascade : cv2.CascadeClassifier
+        Cascade classifier to use for detection.
+    cascade_xml : string
+        If cascade patameter is not specified, this file is used to train one.
+    
+    Returns
+    -------
+    result : ndarray
+        Rectangles, representing detected face boundaries. 
+        Return data format: 
+            np.array([[i0, j0, h0, w0],  # 0th face rectangle
+                      [i1, j1, h1, w1],  # 1st face rectangle
+                      ...])
+    """
     if len(im.shape) != 2:
         im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)    
     if not cascade:

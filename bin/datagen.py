@@ -40,13 +40,13 @@ def gen_face_data(basedir):
     if not os.path.exists(face_dir):
         os.mkdir(face_dir)
     if not os.path.exists(face_lm_dir):
-        os.mkdir(face_lm_dir)
-    for i, image_file in enumerate(image_files):
+        os.mkdir(face_lm_dir)        
+    for idx, image_file in enumerate(image_files):
         # processing face
         im = cv2.imread(image_file)
         face_rects = facedet(im) if im != None else []
         if len(face_rects) != 1:
-            # don't know exactly what to do, skipping
+            # don't know exactly what to do, skipping            
             continue
         i, j, h, w = face_rects[0]
         face = im[i : i+h+30, j : j+w] # extend height and crop
@@ -59,9 +59,9 @@ def gen_face_data(basedir):
         lms = read_landmarks(lm_file)
         face_lms = move_landmarks(lms, (i, j))
         face_lm_file = join(face_lm_dir, lm_file_base)
-        write_landmarks(face_lm_file, face_lms)
-        if i % 50 == 0 and i != 0:
-            print('%d files processed' % i)
+        write_landmarks(face_lm_file, face_lms)        
+        if idx % 50 == 0 and idx != 0:
+            print('%d files processed' % idx)
     print('Done.')
 
 

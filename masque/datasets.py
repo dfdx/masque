@@ -11,8 +11,8 @@ import cv2
 from scipy.misc import imread
 from sklearn import datasets as skdatasets
 from masque.utils import read_landmarks, read_label
-from masque.utils import normalize
-from masque.utils import interp_list
+# from masque.utils import normalize
+# from masque.utils import interp_list
 from masque.utils import delaunay
 import pwa # from pwa.so
 
@@ -299,7 +299,7 @@ class CKDataset(object):
         landmarks = []
         for im_path in image_paths:
             lm_path = (im_path.replace('/faces/', '/face_landmarks/')
-                       .replace('.png', '.txt'))
+                       .replace('.png', '_landmarks.txt'))
             landmarks.append(read_landmarks(lm_path))
         return landmarks
 

@@ -12,21 +12,8 @@ from masque.utils import read_landmarks, write_landmarks
 from masque.utils import facedet
 import masque
 from tests.common import interactive
+from tests.common import data_dir_path, read_images_and_landmarks
 
-
-def data_dir_path():
-    root_dir = dirname(dirname(masque.__file__))
-    return join(root_dir, 'tests', 'data')
-
-
-def read_images_and_landmarks(data_dir):
-    image_and_landmark_paths = zip(glob(join(data_dir, 'images/*')),
-                                   glob(join(data_dir, 'landmarks/*')))
-    images_and_landmarks = []
-    for im_path, lm_path in image_and_landmark_paths:
-        im, lms = (imread(im_path), read_landmarks(lm_path))
-        images_and_landmarks.append((im, lms))
-    return images_and_landmarks
 
 
 class LandmarksTestCase(unittest.TestCase):

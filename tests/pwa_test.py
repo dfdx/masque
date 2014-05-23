@@ -24,6 +24,6 @@ class PWATest(unittest.TestCase):
         tri1 = delaunay(lms1)
         im1 = draw_tri(im1, lms1, tri1)
 
-        im1to0 = pwa.warpTriangle(im1, lms1, lms1,
-                                 tri1, im1.shape)
+        im1to0 = pwa.warpTriangle(im1, lms1, lms0,
+                                 tri1, im0.shape)
         implot([im0, im1, im1to0])

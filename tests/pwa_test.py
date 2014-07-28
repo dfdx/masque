@@ -17,13 +17,13 @@ class PWATest(unittest.TestCase):
 
     def test_basic_pwa(self):
         data_tuples = read_images_and_landmarks(self.data_dir)
-        im0, lms0 = data_tuples[0]
+        im0, lms0 = data_tuples[0]        
         tri0 = delaunay(lms0)
         im0 = draw_tri(im0, lms0, tri0)        
-        im1, lms1 = data_tuples[1]
+        im1, lms1 = data_tuples[1]        
         tri1 = delaunay(lms1)
         im1 = draw_tri(im1, lms1, tri1)
-
-        im1to0 = pwa.warpTriangle(im1, lms1, lms0,
-                                 tri1, im0.shape)
+        im1to0 = pwa.warpTriangle(im1, 
+                                  lms1[:, [1, 0]], lms0[:, [1, 0]],
+                                  tri1, im0.shape)
         implot([im0, im1, im1to0])

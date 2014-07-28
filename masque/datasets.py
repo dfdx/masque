@@ -391,7 +391,9 @@ def ck_lm_pwa(datadir=None, ck_dataset=None, labeled_only=False):
         landmarks = item.landmarks[-1]
         X1_lst.append(landmarks.flatten())
         orig_image = item.images[-1]
-        image = pwa.warpTriangle(orig_image, item.landmarks[-1], ref_lms,
+        item_lms = item.landmarks[-1]
+        image = pwa.warpTriangle(orig_image, 
+                                 item_lms[:, [1, 0]], ref_lms[:, [1, 0]],
                                  triangles, orig_image.shape)
         X2_lst.append(image.flatten())
         y_lst.append(item.label)

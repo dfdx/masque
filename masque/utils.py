@@ -12,6 +12,27 @@ from matplotlib import delaunay as triang
 from scipy.misc import imread
 
 
+def xy2ij(pts): 
+    """
+    Converts a set of points from xy to ij coordinates or vice-versa.
+
+    Params
+    ------
+    pts : array_like
+        Numpy array or array-like structure of shape Nx2
+
+    Returns
+    -------
+    output : ndarray
+        Array of same size, but with first and second column exchanged
+    """
+    pts = np.array(pts)
+    return pts[:, [1, 0]]
+
+
+ij2xy = xy2ij
+
+
 def conv2(im, kernel, mode='same', dst=None):
     source = im
     if mode == 'full':
@@ -133,7 +154,7 @@ def draw_landmarks(im, points, orientation='ij'):
     else: 
         raise RuntimeError("Unkown landmark orientation type: %s" % orientation)
     for pt in points:
-        cv2.circle(im, tuple(pt), 2, (0, 255, 0), -1)
+        cv2.circle(im, tuple(pt), 1, (0, 255, 0), -1)
     return im
 
 
@@ -167,9 +188,9 @@ def draw_tri(im, lms, tri, copy=True, color=(0, 255, 0)):
         i0, j0 = lms[tr[0]]
         i1, j1 = lms[tr[1]]
         i2, j2 = lms[tr[2]]
-        cv2.line(im, (j0, i0), (j1, i1), color)
-        cv2.line(im, (j1, i1), (j2, i2), color)
-        cv2.line(im, (j2, i2), (j0, i0), color)
+        cv2.line(im, (j0, i0), (j1, i1), color, thickness=1)
+        cv2.line(im, (j1, i1), (j2, i2), color, thickness=1)
+        cv2.line(im, (j2, i2), (j0, i0), color, thickness=1)
     return im
     
     
@@ -234,6 +255,21 @@ def get_patch(im, shape):
     j = np.random.randint(0, max_j)
     return im[i:i+h, j:j+w]
 
+
+def standartize(im):
+    if im.ndim == 3:
+        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    im = cv2.equalizeHist(im)
+    im = cv2.resize(im, (256, 256))
+    return im
+
+def standartize_landmarks(lms, original_shape):
+    oh, ow = original_shape
+    h, w = (256, 256)
+    lms = lms.copy()
+    lms[:, 0] = lms[:, 0] * h / oh
+    lms[:, 1] = lms[:, 1] * w / ow    
+    return lms
 
 # def normalize(X):
 #     """Normalize data: substract mean and divide by range"""

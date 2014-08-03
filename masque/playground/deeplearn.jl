@@ -53,17 +53,17 @@ end
 
 # Create dataset consiting of nonzero pixels of face images
 # Returns:
-#   dat : Matrix(# of filenames x # of nonzeros) - data matrix
+#   dat : Matrix(# of nonzeros x # of filenames) - data matrix
 #   nonzero_idxs : Vector((i, j)) - nonzero pixel coordinates
-function facedata(datadir="../../data/CK/faces_aligned", imsize=(256, 256))
-    filenames = readdir(datadir)
-    dat = zeros(imsize..., length(filenames))
+function facedata(datadir="../../data/CK/faces_aligned", imsize=(129, 129))
+    filenames = readdir(datadir)    
     refmat = convert(Array, imread(datadir * "/" * filenames[1]))
     nonzero_idxs = nonzero_indexes(refmat)
+    dat = zeros(length(nonzero_idxs), length(filenames))
     for (i, fname) in enumerate(filenames)
         println(i, " ", fname)
         mat = convert(Array, imread(datadir * "/" * fname))
-        dat[:, :, i] = collect_nonzeros(dat, nonzero_indexes)
+        dat[:, i] = collect_nonzeros(mat, nonzero_idxs)
     end
     return dat, nonzero_idxs
 end

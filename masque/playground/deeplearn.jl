@@ -1,10 +1,12 @@
- 
+
 using Images
 using ImageView
-using MiLK.NNet.RBM
+using MiLK.NNet
+
+include("interp.jl")
 
 
-function nonzero_indexes(mat::Matrix{Uint8})
+function nonzero_indexes{T <: Number}(mat::Matrix{T})
     idxs = (Int, Int)[]
     for i=1:size(mat, 1)
         for j=1:size(mat, 2)
@@ -17,8 +19,12 @@ function nonzero_indexes(mat::Matrix{Uint8})
 end
 
 
-function collect_nonzeros(mat::Matrix{Uint8}, idxs::Array{(Int, Int)})
-    arr = zeros(Uint8, length(idxs))
+#### normalize image data to [0..1]!!!
+#### add check to fit! method!!!
+
+function collect_nonzeros{T <: Number}(mat::Matrix{T}, idxs::Array{(Int, Int)})
+    arr = zeros(T, length(idxs))
+
     k = 1
     for (i, j) in idxs
         arr[k] = mat[i, j]
@@ -28,9 +34,9 @@ function collect_nonzeros(mat::Matrix{Uint8}, idxs::Array{(Int, Int)})
 end
 
 
-function map_nonzeros(matsize::(Int, Int), arr::Array{Uint8, 1},
+function map_nonzeros{T <: Number}(matsize::(Int, Int), arr::Array{T, 1},
                       idxs::Array{(Int, Int)})
-    mat = zeros(Uint8, matsize)
+    mat = zeros(T, matsize)
     k = 1
     for (i, j) in idxs
         mat[i, j] = arr[k]
@@ -40,44 +46,54 @@ function map_nonzeros(matsize::(Int, Int), arr::Array{Uint8, 1},
 end
 
 
-## function readfaces(datadir="../../data/CK/faces_aligned", imsize=(256, 256))
-##     @task begin
-##         filenames = readdir(datadir)
-##         # mats = zeros(imsize..., length(filenames))
-##         for fname in filenames
-##             produce(convert(Array, imread(datadir * "/" * fname)))
-##         end
-##     end    
-## end
-
+IMSIZE = (64, 64)
 
 # Create dataset consiting of nonzero pixels of face images
 # Returns:
 #   dat : Matrix(# of nonzeros x # of filenames) - data matrix
 #   nonzero_idxs : Vector((i, j)) - nonzero pixel coordinates
-function facedata(datadir="../../data/CK/faces_aligned", imsize=(129, 129))
-    filenames = readdir(datadir)    
+function facedata(datadir="../../data/CK/faces_aligned", imsize=IMSIZE)
+    filenames = readdir(datadir)
     refmat = convert(Array, imread(datadir * "/" * filenames[1]))
+    refmat = imresize(refmat, imsize)
+    refmat = refmat ./ 256
     nonzero_idxs = nonzero_indexes(refmat)
     dat = zeros(length(nonzero_idxs), length(filenames))
     for (i, fname) in enumerate(filenames)
         println(i, " ", fname)
         mat = convert(Array, imread(datadir * "/" * fname))
+        mat = imresize(mat, imsize)
+        mat = mat ./ 256
         dat[:, i] = collect_nonzeros(mat, nonzero_idxs)
     end
     return dat, nonzero_idxs
 end
 
+# view weight
+#  W - wright matrix
+#  n - index of weight to view
+#  nzs - nonzero pixel mapping
+function vw(W, n, nzs)
+    w = W[n, :]
+    w = reshape(w, length(w))
+    wim = map_nonzeros(IMSIZE, w, nzs)
+    wim = wim ./ (maximum(wim) - minimum(wim))
+    view(wim)
+end
 
-## function faceimdata(datadir="../../data/CK/faces_aligned", imsize=(256, 256))
-##     filenames = readdir(datadir)
-##     dat = zeros(imsize..., length(filenames))
-##     for (i, fname) in enumerate(filenames)
-##         dat[:, :, i] = convert(Array, imread(datadir * "/" * fname))
-##     end
-##     return dat
-## end
 
+function run1()
+    dat, nzs = facedata()
+    n_feat, n_samples = size(dat)
+    model = RBM(n_feat, int(n_feat / 3))
+    fit!(model, dat, n_iter=20)
+    w = model.weights[1, :]
+    w = reshape(w, length(w))
+    wim = map_nonzeros(IMSIZE, w, nzs)
+    wim = wim ./ (maximum(wim) - minimum(wim))
+    view(wim)
+    return model, nzs, wim
+end
 
 
 # REPL

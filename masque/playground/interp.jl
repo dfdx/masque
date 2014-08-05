@@ -54,10 +54,10 @@ function imresize{T <: Union(Real, Integer)}(dat::Array{T, 2},
 end
 
 
-if isinteractive()
-    using Images
-    using ImageView
-    im = imread("../../data/CK/faces_aligned/S999_003_00000054.png")
-    dat = convert(Array, im)
-end
+## if isinteractive()
+##     using Images
+##     using ImageView
+##     im = imread("../../data/CK/faces_aligned/S999_003_00000054.png")
+##     dat = convert(Array, im)
+## end
 

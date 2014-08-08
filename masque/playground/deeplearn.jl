@@ -46,7 +46,7 @@ function map_nonzeros{T <: Number}(matsize::(Int, Int), arr::Array{T, 1},
 end
 
 
-IMSIZE = (64, 64)
+IMSIZE = (96, 96)
 
 # Create dataset consiting of nonzero pixels of face images
 # Returns:
@@ -82,18 +82,46 @@ function vw(W, n, nzs)
 end
 
 
+function wplot(W, nzs, padding=10)
+    h, w = IMSIZE
+    n = size(W, 1)
+    rows = int(floor(sqrt(n)))
+    cols = int(ceil(n / rows))
+    halfpad = div(padding, 2)
+    dat = zeros(rows * (h + padding), cols * (w + padding))
+    for i=1:n
+        w = W[i, :]
+        w = reshape(w, length(w))
+        wim = map_nonzeros(IMSIZE, w, nzs)
+        wim = wim ./ (maximum(wim) - minimum(wim))
+        r = div(i, rows) + 1
+        c = rem(i, rows)
+        # dat[(r * (h + padding) - 1 + halfpad) : (r * (h + padding) - halfpad),
+        #     (c * (w + padding) - 1 + halfpad) : (c * (w + padding) - halfpad)] = wim
+    end
+    view(dat)
+    return dat
+end
+
+
 function run1()
     dat, nzs = facedata()
     n_feat, n_samples = size(dat)
-    model = RBM(n_feat, int(n_feat / 3))
-    fit!(model, dat, n_iter=20)
+    model = RBM(n_feat, int(n_feat / 4))
+    for i=1:3
+        println("meta-iteration #", i)
+        fit!(model, dat, n_iter=10)
+        println("Sleeping for 20 seconds to cool down")
+        sleep(20)
+    end
     w = model.weights[1, :]
     w = reshape(w, length(w))
     wim = map_nonzeros(IMSIZE, w, nzs)
     wim = wim ./ (maximum(wim) - minimum(wim))
     view(wim)
-    return model, nzs, wim
+    return model, nzs
 end
+
 
 
 # REPL

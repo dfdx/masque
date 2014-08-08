@@ -1,5 +1,7 @@
 data
 *~
 *.pyc
+*.jld
+.juliahistory
 masque/sk_data
 _masque

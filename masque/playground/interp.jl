@@ -61,3 +61,61 @@ end
 ##     dat = convert(Array, im)
 ## end
 
+
+
+using Images, Cairo
+
+function imresize_julia!(resized, original)
+    scale1 = (size(original,1)-1)/(size(resized,1)-0.999f0)
+    scale2 = (size(original,2)-1)/(size(resized,2)-0.999f0)
+    for jr = 0:size(resized,2)-1
+        jo = scale2*jr
+        ijo = itrunc(jo)
+        fjo = jo - oftype(jo, ijo)
+        @inbounds for ir = 0:size(resized,1)-1
+            io = scale1*ir
+            iio = itrunc(io)
+            fio = io - oftype(io, iio)
+            tmp = (1-fio)*((1-fjo)*original[iio+1,ijo+1] +
+                           fjo*original[iio+1,ijo+2])
+            + fio*((1-fjo)*original[iio+2,ijo+1] +
+                   fjo*original[iio+2,ijo+2])
+            resized[ir+1,jr+1] = convertsafely(eltype(resized), tmp)
+        end
+    end
+    resized
+end
+imresize_julia(original, new_size) =
+    imresize_julia!(similar(original,
+                            new_size), original)
+                            
+convertsafely{T<:FloatingPoint}(::Type{T}, val) = convert(T, val)
+convertsafely{T<:Integer}(::Type{T}, val::Integer) = convert(T, val)
+convertsafely{T<:Integer}(::Type{T}, val::FloatingPoint) =
+    itrunc(T,
+           val+oftype(val, 0.5))
+           
+           
+function imresize_cairo(dat::Array{Uint32, 2}, new_size::(Int, Int))
+    cs = CairoImageSurface(dat, 0)
+    new_dat = zeros(Uint32, new_size)
+    new_cs = CairoImageSurface(new_dat, 0)
+    pat = CairoPattern(cs)
+    pattern_set_filter(pat, Cairo.FILTER_BILINEAR)
+    c = CairoContext(new_cs)
+    h, w = size(dat)
+    new_h, new_w = new_size
+    scale(c, new_h / h, new_w / w)
+    set_source(c, pat)
+    paint(c)
+    return new_cs.data
+end
+
+## img = rand(0x00:0xff, 774, 512)
+## new_size = (3096, 2048)
+## imresize_cairo(convert(Array{Uint32}, img), new_size)
+## println("Cairo:")
+## @time imresize_cairo(convert(Array{Uint32}, img), new_size)
+## imresize_julia(img, new_size)
+## println("Julia:")
+## @time imresize_julia(img, new_size)

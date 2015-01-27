@@ -1,9 +1,7 @@
 
 using Images
 using ImageView
-using Milk
-
-include("interp.jl")
+using Boltzmann
 
 
 function nonzero_indexes{T <: Number}(mat::Matrix{T})
@@ -44,6 +42,40 @@ end
 
 IMSIZE = (96, 96)
 
+
+using Images
+
+function imresize!(resized, original)
+    scale1 = (size(original,1)-1)/(size(resized,1)-0.999f0)
+    scale2 = (size(original,2)-1)/(size(resized,2)-0.999f0)
+    for jr = 0:size(resized,2)-1
+        jo = scale2*jr
+        ijo = itrunc(jo)
+        fjo = jo - oftype(jo, ijo)
+        @inbounds for ir = 0:size(resized,1)-1
+            io = scale1*ir
+            iio = itrunc(io)
+            fio = io - oftype(io, iio)
+            tmp = (1-fio)*((1-fjo)*original[iio+1,ijo+1] +
+                           fjo*original[iio+1,ijo+2]) +
+            fio*((1-fjo)*original[iio+2,ijo+1] +
+                   fjo*original[iio+2,ijo+2])
+            resized[ir+1,jr+1] = convertsafely(eltype(resized), tmp)
+        end
+    end
+    resized
+end
+imresize(original, new_size) =
+    imresize!(similar(original,
+                      new_size), original)
+                      
+convertsafely{T<:FloatingPoint}(::Type{T}, val) = convert(T, val)
+convertsafely{T<:Integer}(::Type{T}, val::Integer) = convert(T, val)
+convertsafely{T<:Integer}(::Type{T}, val::FloatingPoint) =
+    itrunc(T, val+oftype(val, 0.5))
+
+
+
 # Create dataset consiting of nonzero pixels of face images
 # Returns:
 #   dat : Matrix(# of nonzeros x # of filenames) - data matrix
@@ -52,14 +84,14 @@ function facedata(datadir="../../data/CK/faces_aligned", imsize=IMSIZE)
     filenames = readdir(datadir)
     refmat = convert(Array, imread(datadir * "/" * filenames[1]))
     refmat = imresize(refmat, imsize)
-    refmat = refmat ./ 256
+    # refmat = refmat ./ 256  -- imresize already does it 
     nonzero_idxs = nonzero_indexes(refmat)
     dat = zeros(length(nonzero_idxs), length(filenames))
     for (i, fname) in enumerate(filenames)
-        println(i, " ", fname)
+        if i % 500 == 0 println(i, " ", fname) end
         mat = convert(Array, imread(datadir * "/" * fname))
         mat = imresize(mat, imsize)
-        mat = mat ./ 256
+        # mat = mat ./ 256
         dat[:, i] = collect_nonzeros(mat, nonzero_idxs)
     end
     return dat, nonzero_idxs
@@ -97,13 +129,14 @@ using HDF5, JLD, PyPlot
 flatten(a) = reshape(a, prod(size(a)))
 ihist(a) = plt.hist(flatten(a), bins=100)
 
-function run1(n_hid=512)
+
+function run(n_hid=1024)
     dat, nzs = facedata()
     n_feat, n_samples = size(dat)
-    model = GRBM(n_feat, n_hid)
-    for i=1:5
+    model = GRBM(n_feat, n_hid, sigma=0.001)    
+    for i=1:10
         println("meta-iteration #", i)
-        fit!(model, dat, n_iter=10, n_gibbs=3, lr=0.1)
+        fit(model, dat, n_iter=10, n_gibbs=3, lr=0.01)
         println("Sleeping for 20 seconds to cool down")
         sleep(20)
     end
@@ -141,7 +174,15 @@ end
 # n_hid=128, n_gibbs=3, n_meta=10, lr=0.01 ~ 1 good, others similar and bad
 # n_hid=128, n_gibbs=10, n_meta=10, lr=0.01 ~ 1 good, others similar and bad
 # brbm: n_hid=768, n_gibbs=3, n_meta=10, lr=0.01 ~ 20 good
-# grbm: n_hid=512, n_gibbs=3, n_meta=5, lr=0.1 ~ 
+# grbm: n_hid=1024, n_gibbs=3, n_meta=10 ~ half almost good
+# grbm: n_hid=768, n_gibbs=3, n_meta=10 ~ half almost good
+# grbm: n_hid=1024, n_gibbs=10, n_meta=10 ~ half almost good
+# grbm: n_hid=1024, n_gibbs=10, n_meta=3, lr=0.01 ~ half almost good
+#! grbm: n_hid=1024, n_gibbs=3, n_meta=10, sigma=0.001, lr=0.01 ~ all really good!
+# brbm: n_hid=1024, n_gibbs=3, n_meta=10, sigma=0.001, lr=0.01 ~ almost the same
+
+# grbm (w/ momentum): n_hid=1024, n_gibbs=2, n_meta=5, sigma=0.001, lr=0.01 ~ 2243
+
 
 
 function load_model(filename="session.jld")

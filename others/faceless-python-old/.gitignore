@@ -1,0 +1,9 @@
+*~
+*.pyc
+*.bmp
+*.mat
+build/
+data/
+others/
+links
+old/

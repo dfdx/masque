@@ -1,0 +1,7 @@
+	
+Differences from ICAAM
+----------------------
+
+NumPy has several important differences from Matlab. In particular, while Matlab arrays are column-oriented (i.e. data is stored column-by-column), NumPy arrays by default are row-oriented (data is stored row-by-row). Naive approach to translating Matlab code to Python would hit performance a lot, so in Faceless order of some indexes is changed. These changes are listed below: 
+
+ * individual matrices are indexed by first (and not by last) index in matrix containers, e.g. ith appearance is `appearances[i, :, :, :]` and not `appearances[:, :, :, i]`
